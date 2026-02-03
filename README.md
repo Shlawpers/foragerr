@@ -1,249 +1,181 @@
 # Foragerr
 
-A Python application that automatically synchronizes your Plex watchlist with Radarr and manages movie quality upgrades.
+Automatically sync your Plex watchlist to Radarr and keep your movies upgraded to better quality.
 
-## Features
+## What It Does
 
-- **Watchlist Sync** - Automatically adds movies from your Plex watchlist to Radarr
-- **Friends' Watchlists** - Optionally sync movies from friends' watchlists via RSS feed
-- **Friend Tagging** - Tag movies in Radarr with the friend's name who added them (jellyseerr integration used to grab friend names)
-- **Quality Upgrades** - Automatically searches for better quality versions of undersized movies (or any movie you tag for uprading) on a scheduled interval.
-- **Search Limits** - Configurable per-run and daily search limits to avoid hammering indexers
-- **Dry Run Mode** - Preview changes without actually making them
+Foragerr runs two independent jobs on a schedule:
 
-## How It Works
+### Job 1: Watchlist Sync
 
-Foragerr runs two scheduled jobs:
+**Problem:** You add movies to your Plex watchlist, but they don't automatically appear in Radarr.
 
-1. **Watchlist Sync Job**
-   - Fetches your personal Plex watchlist
-   - Optionally fetches friends' watchlists via RSS
-   - Adds new movies to Radarr with appropriate tags
-   - Triggers searches for newly added movies (within configured limits)
+**Solution:** Foragerr checks your Plex watchlist and adds any missing movies to Radarr.
 
-2. **Upgrade Job**
-   - Scans Radarr for movies with the upgrade tag
-   - Removes the tag from movies that meet the file size threshold
-   - Triggers searches for undersized movies (with rate limiting)
+- Syncs your personal Plex watchlist to Radarr
+- Optionally syncs friends' watchlists too (via RSS feed)
+- Tags each movie so you know where it came from
+- Triggers a search for newly added movies (with rate limiting)
+
+### Job 2: Persistent Upgrader
+
+**Problem:** You add a movie to Radarr, it searches once, finds nothing (or grabs a low-quality version), and then... nothing. It just sits there. You have to manually search again and again.
+
+**Solution:** Foragerr keeps searching for your movies until they reach your desired quality.
+
+- **Retries failed downloads** — Movies that didn't grab anything on first search get searched again automatically
+- **Upgrades low-quality grabs** — Movies below your size threshold (e.g., < 4GB) keep getting searched for better versions
+- **Stops when satisfied** — Once a movie meets your quality threshold, it's removed from the upgrade queue
+- **Works on any tagged movie** — Tag any movie in Radarr for upgrade and Foragerr will hunt for it
+- **Rate-limited** — Won't hammer your indexers (configurable searches per run and per day)
+
+---
 
 ## Quick Start
 
-### Docker Compose (Recommended)
+### Using Pre-built Image (Easiest)
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/foragerr.git
-   cd foragerr
-   ```
+1. Create a `docker-compose.yaml`:
+```yaml
+services:
+  foragerr:
+    image: ghcr.io/shlawpers/foragerr:latest
+    container_name: foragerr
+    restart: unless-stopped
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
+    # Uncomment if Radarr is behind a VPN container:
+    # network_mode: "service:gluetun"
+```
 
-2. Create your configuration:
-   ```bash
-   cp config.example.yaml config.yaml
-   ```
+2. Download the example config:
+```bash
+curl -O https://raw.githubusercontent.com/Shlawpers/foragerr/main/config.example.yaml
+mv config.example.yaml config.yaml
+```
 
-3. Edit `config.yaml` with your settings (see [Configuration](#configuration))
+3. Edit `config.yaml` with your Plex token and Radarr API key (see [Configuration](#configuration))
 
-4. Start the container:
-   ```bash
-   docker compose up -d
-   ```
+4. Start it:
+```bash
+docker compose up -d
+```
 
-5. View logs:
-   ```bash
-   docker compose logs -f
-   ```
+### Building Locally
 
-### Manual Installation (more of a pain)
+```bash
+git clone https://github.com/Shlawpers/foragerr.git
+cd foragerr
+cp config.example.yaml config.yaml
+# Edit config.yaml with your settings
+docker compose up -d
+```
 
-1. Clone and enter the directory:
-   ```bash
-   git clone https://github.com/yourusername/foragerr.git
-   cd foragerr
-   ```
-
-2. Create a virtual environment:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Create your configuration:
-   ```bash
-   cp config.example.yaml config.yaml
-   ```
-
-5. Edit `config.yaml` with your settings
-
-6. Run the scheduler:
-   ```bash
-   python watchlist-scheduler.py
-   ```
+---
 
 ## Configuration
 
-Copy `config.example.yaml` to `config.yaml` and configure:
+Edit `config.yaml` with these required values:
 
-### Required Settings
+| Setting | Where to Find It |
+|---------|------------------|
+| `remotePlex.token` | [Plex Support Article](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/) |
+| `radarr.base_url` | Your Radarr URL (e.g., `http://localhost:7878`) |
+| `radarr.apikey` | Radarr → Settings → General → API Key |
+| `radarr.root_folder` | Path where Radarr stores movies |
 
-| Setting | Description |
-|---------|-------------|
-| `remotePlex.token` | Your Plex authentication token |
-| `radarr.base_url` | Your Radarr server URL |
-| `radarr.apikey` | Your Radarr API key |
-| `radarr.root_folder` | Root folder path for new movies |
+### Setting Up Tags in Radarr
 
-### Getting Your Plex Token
+Foragerr uses tags to track movies. Create these in Radarr first:
 
-1. Sign into Plex Web App
-2. Browse to any media item
-3. Click the "..." menu and select "Get Info"
-4. Click "View XML"
-5. The token is in the URL: `X-Plex-Token=YOUR_TOKEN`
+1. Go to **Radarr → Settings → Tags**
+2. Create a tag called `watchlist` (or any name you prefer)
+3. Create a tag called `upgrade`
+4. Note the tag IDs and add them to your config
 
-Or see: [Finding an Authentication Token](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)
+### Optional: Friends' Watchlists
 
-### Getting Your Radarr API Key
+To sync movies your friends add to their Plex watchlists:
 
-1. Open Radarr
-2. Go to Settings -> General
-3. Copy the API Key
+1. In Plex Web, go to **Watchlist → Share → Copy RSS Feed URL**
+2. Add the URL to `remotePlex.friends_watchlist.feed_url`
+3. Set `enabled: true`
 
-### Friends' Watchlist RSS
+Foragerr can tag movies by friend name if you connect Jellyseerr (it pulls usernames from there).
 
-To sync friends' watchlists:
+---
 
-1. In Plex Web, go to your Watchlist
-2. Click the Share button
-3. Copy the RSS Feed URL
-4. Add it to `remotePlex.friends_watchlist.feed_url`
+## Key Settings
 
-### Tag Setup in Radarr
+```yaml
+schedule:
+  check_interval_minutes: 120    # How often to sync watchlist
+  max_daily_searches: 200        # Total searches per day (shared by both jobs)
+  searches_per_run: 3            # Max searches per job run
 
-Before running Foragerr, create these tags in Radarr:
+upgrade:
+  check_interval_minutes: 100    # How often to retry upgrades
+  min_file_size_gb: 4            # Target quality threshold
+                                 # Movies missing or below this size = keep searching
+                                 # Movies at or above this size = done, remove from queue
+```
 
-1. Go to Radarr -> Settings -> Tags
-2. Create a tag for watchlist movies (e.g., "watchlist")
-3. Create a tag for upgrade-eligible movies (e.g., "upgrade")
-4. Note the tag IDs (visible in the URL when editing)
-5. Add these IDs to your config
+---
 
-## Usage
+## Running Behind a VPN
 
-### Run as Scheduler (Default)
+If Radarr runs behind a VPN container (like Gluetun), Foragerr needs to share that network:
 
-Runs both jobs on configured intervals:
+```yaml
+services:
+  foragerr:
+    image: ghcr.io/shlawpers/foragerr:latest
+    network_mode: "service:gluetun"
+    # ...
+```
+
+Then set `radarr.base_url` to `http://localhost:7878` (they share the same network).
+
+---
+
+## CLI Options
+
 ```bash
+# Run both jobs on schedule (default)
 python watchlist-scheduler.py
-```
 
-### Run Jobs Once
-
-Run watchlist sync once:
-```bash
+# Run watchlist sync once
 python watchlist-scheduler.py --run-watchlist
-```
 
-Run upgrade job once:
-```bash
+# Run upgrader once
 python watchlist-scheduler.py --run-upgrade
-```
 
-### Dry Run Mode
-
-Preview changes without making them:
-```bash
+# Preview without making changes
 python watchlist-scheduler.py --dry-run
-python main.py --dry-run
 ```
 
-## Docker Network Modes
-
-### Running with a VPN Container
-
-If you route Radarr through a VPN container (like Gluetun), uncomment the network_mode in docker-compose.yaml:
-
-```yaml
-network_mode: "service:gluetun"
-```
-
-Then set `radarr.base_url` to `http://localhost:7878` since both containers share the same network namespace.
-
-### Running on Host Network
-
-If Radarr is running directly on the host:
-
-```yaml
-network_mode: host
-```
-
-## File Structure
-
-```
-foragerr/
-├── watchlist-scheduler.py  # Entry point - schedules and runs jobs
-├── main.py                 # Watchlist sync job logic
-├── scheduled_upgrader.py   # Upgrade job logic
-├── plex_api.py             # Plex API wrapper
-├── radarr_api.py           # Radarr API wrapper
-├── jellyseerr_api.py       # Jellyseerr user mapping
-├── database.py             # SQLite database operations
-├── search_conditions.py    # Rate limiting logic
-├── config.py               # Config loader
-├── config.yaml             # Your configuration (not in repo)
-├── config.example.yaml     # Example configuration
-├── requirements.txt        # Python dependencies
-├── Dockerfile              # Docker build file
-└── docker-compose.yaml     # Docker Compose configuration
-```
-
-## Data Files
-
-These files are created at runtime in the working directory (or `/app/data` in Docker):
-
-| File | Purpose |
-|------|---------|
-| `plex_watchlister.db` | SQLite database tracking processed movies |
-| `daily_search_count.json` | Tracks daily search count |
-| `watchlist_sync.log` | Application logs (rotates at 10MB) |
-| `locks/*.lock` | Job lock files for concurrency control |
+---
 
 ## Troubleshooting
 
-### Connection Refused to Radarr
+**"Connection refused to Radarr"**
+- Is Radarr running?
+- Check the URL in config.yaml
+- If using Docker, check your network_mode setting
 
-- Check that Radarr is running
-- Verify the URL in config.yaml
-- If using Docker, ensure correct network mode
-
-### Movies Not Being Added
-
-- Check the logs for error messages
+**Movies not being added**
+- Check logs: `docker compose logs -f`
 - Verify your Plex token is valid
-- Ensure the movie has a valid TMDB ID
+- Movies need a TMDB ID to be added
 
-### Search Limits
+**Searches not triggering**
+- Check if `max_daily_searches` limit was reached
+- Movies are only auto-searched once when first added (the upgrader handles retries)
+- The upgrader only searches movies that are missing or below `min_file_size_gb`
 
-If searches aren't triggering:
-- Check `max_daily_searches` hasn't been reached
-- Check `searches_per_run` limit
-- Movies are only searched once in the main sync job
-
-### VPN Issues
-
-If running behind a VPN container:
-- Use `localhost` for Radarr URL
-- Ensure the VPN container is running first
-- Check that ports are mapped on the VPN container
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+---
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT

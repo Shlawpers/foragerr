@@ -1,19 +1,23 @@
 services:
   foragerr:
-    build: .
+    # Option 1: Use pre-built image (recommended)
+    image: ghcr.io/shlawpers/foragerr:latest
+
+    # Option 2: Build locally (uncomment below, comment out image above)
+    # build: .
+
     container_name: foragerr
     restart: unless-stopped
     environment:
-      - PUID=1000
-      - PGID=1000
       - TZ=America/Toronto  # Change to your timezone
     volumes:
-      # Mount your config file
       - ./config.yaml:/app/config.yaml:ro
-      # Persistent data (database, logs)
       - ./data:/app/data
-    # Optional: If running alongside Radarr behind a VPN container
+
+    # Uncomment ONE of the following if needed:
+
+    # If Radarr is behind a VPN container (like Gluetun):
     # network_mode: "service:gluetun"
 
-    # Optional: Use host network if Radarr is on localhost
+    # If Radarr is running directly on the host:
     # network_mode: host
