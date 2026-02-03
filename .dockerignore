@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Runtime data
+*.db
+*.log
+*.json
+plex_watchlister.db
+daily_search_count.json
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+.claude/
+
+# macOS
+.DS_Store
+
+# Documentation (not needed in container)
+README.md
+LICENSE
+CHANGELOG.md
+docs/
+
+# Test files
+*_test.py
+test_*.py
+tests/
+
+# Config with secrets (will be mounted)
+config.yaml

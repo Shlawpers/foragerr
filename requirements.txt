@@ -1,0 +1,8 @@
+# Core dependencies
+requests>=2.32.4      # Security fix for CVE-2024-47081
+PyYAML>=6.0.1         # Use safe_load only (already done in code)
+schedule>=1.2.0
+feedparser>=6.0.10
+
+# Optional but recommended
+python-dateutil>=2.9.0

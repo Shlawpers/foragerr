@@ -1,0 +1,120 @@
+# Foragerr Configuration
+# Copy this file to config.yaml and fill in your values
+
+# Remote Plex server configuration
+remotePlex:
+  # Plex Discover API base URL (default works for most users)
+  base_url: "https://discover.provider.plex.tv"
+
+  # Your Plex authentication token
+  # Get it from: https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/
+  token: "YOUR_PLEX_TOKEN_HERE"
+
+  # Optional: Library section ID (usually 1)
+  library_section: 1
+
+  # Request timeout in seconds
+  request_timeout: 30
+
+  # Friends' watchlist via RSS feed
+  friends_watchlist:
+    enabled: false  # Set to true to sync friends' watchlists
+    method: "rss"
+
+    # Get your friends RSS feed URL from:
+    # Plex Web -> Watchlist -> Share -> Copy RSS Feed URL
+    feed_url: "https://rss.plex.tv/YOUR_RSS_FEED_ID"
+
+    # Tag movies in Radarr with the friend's username who added them
+    user_tagging:
+      enabled: false
+
+      # Jellyseerr integration for auto-mapping Plex user IDs to usernames
+      # Leave empty if not using Jellyseerr
+      jellyseerr_url: "http://localhost:5055"
+      jellyseerr_api_key: "YOUR_JELLYSEERR_API_KEY"
+
+      # Tag naming settings
+      tag_prefix: "friend-"          # Tags will be like "friend-JohnDoe"
+      default_tag_name: "unknown"    # For users not in Jellyseerr or manual mappings
+
+      # Manual overrides: plex_user_id -> display_name
+      # Find user IDs in the logs when unknown users appear
+      manual_mappings: {}
+        # Example:
+        # a89dfd9b4f91f6f9: "John"
+        # c7eb29d186ae52c0: "Jane"
+
+# Radarr configuration
+radarr:
+  # Radarr server URL
+  base_url: "http://localhost:7878"
+
+  # Radarr API key (Settings -> General -> API Key)
+  apikey: "YOUR_RADARR_API_KEY"
+
+  # Root folder path for new movies
+  root_folder: "/movies/"
+
+  # Tag IDs (create these tags in Radarr first, then use their IDs)
+  tags:
+    watchlist: 1    # Tag ID for watchlist-synced movies
+    upgrade: 2      # Tag ID for movies needing quality upgrade
+
+  # Quality profile ID (found in Radarr -> Settings -> Profiles)
+  default_quality_profile: "1"
+
+  # Whether to trigger a search when adding new movies
+  search_for_movie: true
+
+  # Request timeout in seconds
+  request_timeout: 30
+
+# Schedule settings
+schedule:
+  # How often to sync the watchlist (in minutes)
+  check_interval_minutes: 120
+
+  # Maximum searches per day (across all jobs)
+  max_daily_searches: 200
+
+  # Maximum searches per job run
+  searches_per_run: 3
+
+  # Whether to run sync immediately on startup
+  run_on_startup: true
+
+  # Lock timeout for concurrent job protection (seconds)
+  lock_timeout_seconds: 7200
+
+# Quality upgrade settings
+upgrade:
+  # Enable the upgrade job
+  enabled: true
+
+  # How often to check for upgrades (in minutes)
+  check_interval_minutes: 100
+
+  # Minimum file size in GB - movies smaller than this qualify for upgrade
+  min_file_size_gb: 4
+
+  # Maximum upgrade searches per run
+  max_searches_per_run: 3
+  scheduled_search_limit: 4
+
+  # File to track daily search count
+  daily_search_count_file: "daily_search_count.json"
+
+  # Tag ID for upgrade-eligible movies (should match radarr.tags.upgrade)
+  plex_upgrade_tag: 2
+
+# Execution and debug settings
+execution:
+  # Dry run mode - preview changes without actually making them
+  dry_run: false
+
+  # Verbose logging
+  verbose: false
+
+  # Debug mode - extra detailed logging
+  debug_mode: false

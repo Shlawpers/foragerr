@@ -1,0 +1,56 @@
+# Configuration with secrets
+config.yaml
+
+# Runtime data
+*.db
+plex_watchlister.db
+daily_search_count.json
+
+# Log files
+*.log
+watchlist_sync.log
+radarr_debug.log
+upgrader_standalone.log
+
+# Lock files
+locks/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+ENV/
+env/
+.eggs/
+*.egg-info/
+*.egg
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.claude/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Test artifacts
+movie.json
+*.bak
+*.backup
+
+# Docker
+.docker/
+
+# Data directory (runtime)
+data/*.db
+data/*.json
+data/*.log
